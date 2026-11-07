@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Les Îles Dérivantes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Police pixel optionnelle : sans réseau, le jeu retombe sur une police monospace. -->
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="clock" class="panel small"><span id="clock-icon"></span><span id="clock-day"></span><span id="clock-time"></span></div>
+      <div id="savebadge" class="panel small hidden"></div>
+      <div id="minimap" class="panel small hidden"><canvas id="minimap-cv" width="192" height="192"></canvas><div id="minimap-cap"></div></div>
+      <div id="vitals" class="panel small"><div class="bar hp"><i id="bar-hp"></i><span id="txt-hp"></span></div><div class="bar hun"><i id="bar-hun"></i><span id="txt-hun"></span></div><div id="buffs"></div></div>
+      <div id="toasts"></div>
+      <div id="prompt" class="panel small hidden"><kbd>E</kbd><span id="prompt-text"></span></div>
+      <div id="dialog" class="panel hidden"><div id="dialog-title"></div><div id="dialog-text"></div><div class="dialog-hint"><kbd>E</kbd> fermer</div></div>
+      <div id="abilities"></div>
+      <div id="hotbar" class="panel"></div>
+      <div id="help" class="panel small hidden">
+        <div><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches : bouger</div>
+        <div><kbd>Espace</kbd> : dash</div>
+        <div><kbd>Clic gauche</kbd> ou <kbd>J</kbd> : utiliser l'outil</div>
+        <div><kbd>E</kbd> : interagir · cueillir · récolter (près d'un objet)</div>
+        <div>Aliment en main : <kbd>Clic droit</kbd> manger · graine : <kbd>Clic gauche</kbd> planter</div>
+        <div>Arme forgée : <kbd>Clic gauche</kbd> combo · <kbd>R</kbd> <kbd>F</kbd> <kbd>V</kbd> capacités</div>
+        <div>Objet à poser : <kbd>Clic gauche</kbd> poser · <kbd>Clic droit</kbd> retirer</div>
+        <div><kbd>1-8</kbd> / molette : barre rapide</div>
+        <div><kbd>E</kbd> : inventaire (sans objet à côté) · <kbd>C</kbd> : artisanat · <kbd>M</kbd> : grande carte</div>
+        <div><kbd>Échap</kbd> : pause · <kbd>H</kbd> : masquer l'aide</div>
+      </div>
+    </div>
+
+    <!-- Écran titre -->
+    <div id="screen-title" class="screen hidden">
+      <div class="title-box">
+        <h1 id="title-main">Les Îles<br>Dérivantes</h1>
+        <div class="subtitle">Un jeu d'exploration, de cueillette et d'aventure</div>
+        <div class="menu-buttons">
+          <button id="btn-continue" class="btn">Continuer</button>
+          <button id="btn-new" class="btn">Nouvelle partie</button>
+          <button id="btn-join" class="btn">Rejoindre une partie (coop)</button>
+          <button id="btn-options" class="btn">Options &amp; commandes</button>
+        </div>
+        <div id="title-note" class="note"></div>
+      </div>
+      <div class="version">Prototype · étape 1</div>
+    </div>
+
+    <!-- Coop locale -->
+    <div id="fx-flash"></div>
+    <div id="fx-hurt"></div>
+    <div id="screen-coop" class="screen overlay hidden">
+      <div class="panel box cont-box">
+        <h2 id="coop-title">Coop locale</h2>
+        <div id="coop-host">
+          <p class="cont-sub">Donne ce code à ton ami : il le tape dans « Rejoindre une partie ».</p>
+          <div id="coop-code" class="coop-code">…</div>
+          <button id="coop-copy-code" class="btn small">Copier le code</button>
+          <details id="coop-manual-h" class="coop-manual">
+            <summary>Sans internet / ça ne marche pas : connexion manuelle (longs codes)</summary>
+            <p class="cont-sub">Même wifi. Chaque invité demande un code ; les codes se copient-collent (message, mail…).</p>
+            <button id="coop-gen" class="btn small">1. Créer un code d’invitation</button>
+            <textarea id="coop-offer" readonly rows="3" placeholder="Le code d’invitation apparaît ici"></textarea>
+            <button id="coop-copy-offer" class="btn small">Copier le code</button>
+            <p class="cont-sub">2. Colle ici le code de réponse de l’invité</p>
+            <textarea id="coop-answer" rows="3"></textarea>
+            <button id="coop-accept" class="btn small">3. Connecter</button>
+          </details>
+        </div>
+        <div id="coop-join">
+          <p class="cont-sub">Tape le code de 5 caractères donné par l’hôte.</p>
+          <input id="coop-code-in" class="coop-code-in" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE">
+          <button id="coop-room-btn" class="btn small">Rejoindre</button>
+          <details id="coop-manual-j" class="coop-manual">
+            <summary>Connexion manuelle (longs codes)</summary>
+            <p class="cont-sub">1. Colle le code d’invitation donné par l’hôte</p>
+            <textarea id="coop-offer-in" rows="3"></textarea>
+            <button id="coop-join-btn" class="btn small">2. Créer mon code de réponse</button>
+            <textarea id="coop-answer-out" readonly rows="3" placeholder="Ton code de réponse apparaît ici"></textarea>
+            <button id="coop-copy-answer" class="btn small">Copier le code</button>
+            <p class="cont-sub">3. Envoie-le à l’hôte : la partie démarre dès qu’il l’a validé.</p>
+          </details>
+        </div>
+        <div id="coop-status" class="note"></div>
+        <button id="btn-coop-close" class="btn small">Retour</button>
+      </div>
+    </div>
+
+    <!-- Créateur d'avatar -->
+    <div id="screen-avatar" class="screen overlay hidden">
+      <div class="panel box avatar-box">
+        <h2>Mon avatar</h2>
+        <canvas id="av-preview" width="256" height="112"></canvas>
+        <div id="av-rows"></div>
+        <div class="menu-buttons row">
+          <button id="av-random" class="btn small">Au hasard</button>
+          <button id="av-reset" class="btn small">Par défaut</button>
+        </div>
+        <div class="menu-buttons row">
+          <button id="av-ok" class="btn small">Valider</button>
+          <button id="av-cancel" class="btn small">Annuler</button>
+        </div>
+        <div id="av-note" class="note"></div>
+      </div>
+    </div>
+
+    <!-- Pause -->
+    <div id="screen-pause" class="screen overlay hidden">
+      <div class="panel box">
+        <h2>Pause</h2>
+        <div class="menu-buttons">
+          <button id="btn-resume" class="btn">Reprendre</button>
+          <button id="btn-save" class="btn">Sauvegarder</button>
+          <button id="btn-coop" class="btn">Coop : inviter un joueur</button>
+          <button id="btn-pause-options" class="btn">Options &amp; commandes</button>
+          <button id="btn-quit" class="btn">Quitter vers le menu</button>
+        </div>
+        <div id="pause-note" class="note"></div>
+      </div>
+    </div>
+
+    <!-- Inventaire -->
+    <div id="screen-inventory" class="screen overlay hidden">
+      <div class="panel box inv-box">
+        <h2>Sac à dos</h2>
+        <div id="inv-armor"></div>
+        <div id="inv-grid"></div>
+        <div class="inv-info">
+          <div id="inv-detail"><div class="inv-name">&nbsp;</div><div class="inv-desc">Clique sur un objet pour le sélectionner, puis sur une autre case pour le déplacer.</div></div>
+          <div class="inv-actions">
+            <button id="btn-sort" class="btn small">Trier</button>
+            <button id="btn-equip" class="btn small">Équiper</button>
+            <button id="btn-throw" class="btn small">Jeter</button>
+            <button id="btn-inv-close" class="btn small">Fermer (E)</button>
+          </div>
+        </div>
+        <div class="note">La première rangée est ta barre rapide (touches 1 à 8).</div>
+      </div>
+    </div>
+
+    <!-- Coffre / four -->
+    <div id="screen-container" class="screen overlay hidden">
+      <div class="panel box cont-box">
+        <h2 id="cont-title">Coffre</h2>
+        <div id="cont-body"></div>
+        <div class="cont-sub">Ton sac (clique pour déposer)</div>
+        <div id="cont-inv"></div>
+        <div id="cont-note" class="note"></div>
+        <div class="menu-buttons row"><button id="btn-cont-close" class="btn small">Fermer (Échap)</button></div>
+      </div>
+    </div>
+
+    <!-- Table du Forgeron -->
+    <div id="screen-forge" class="screen overlay hidden">
+      <div class="panel box forge-box">
+        <h2>Table du Forgeron</h2>
+        <div class="cont-sub">1. Choisis le modèle d’arme</div>
+        <div id="forge-models"></div>
+        <div class="cont-sub">2. Place un matériau dans chaque emplacement (du bas de l’arme vers le bout)</div>
+        <div class="forge-top">
+          <div id="forge-slots"></div>
+          <div id="forge-prev"></div>
+        </div>
+        <div id="forge-info"></div>
+        <div id="forge-note" class="note"></div>
+        <div class="menu-buttons row"><button id="btn-forge-make" class="btn small">Fabriquer</button><button id="btn-forge-clear" class="btn small">Tout retirer</button></div>
+        <div class="cont-sub">Ton sac (clique un matériau pour le placer)</div>
+        <div id="forge-inv"></div>
+        <div class="menu-buttons row"><button id="btn-forge-close" class="btn small">Fermer (Échap)</button></div>
+      </div>
+    </div>
+
+    <!-- Tables d'enchantement / de désenchantement -->
+    <div id="screen-enchant" class="screen overlay hidden">
+      <div class="panel box ench-box">
+        <h2 id="ench-title">Table d’enchantement</h2>
+        <div id="ench-sub" class="note sub"></div>
+        <div id="ench-main">
+          <div id="ench-left">
+            <div id="ench-stage">
+              <canvas id="ench-cv" width="140" height="100"></canvas>
+              <div id="es-a" class="eslot"></div><div id="es-w" class="eslot weapon"></div><div id="es-b" class="eslot"></div>
+            </div>
+            <div id="ench-info"></div>
+          </div>
+          <div id="ench-right">
+            <div class="cont-sub">Ton sac (clique pour poser ; clique un emplacement pour retirer)</div>
+            <div id="ench-inv"></div>
+            <div id="ench-note" class="note"></div>
+            <button id="btn-ench-go" class="btn go">Enchanter</button>
+            <div class="menu-buttons row"><button id="btn-ench-clear" class="btn small">Tout retirer</button><button id="btn-ench-close" class="btn small">Fermer (Échap)</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grande carte -->
+    <div id="screen-map" class="screen hidden">
+      <canvas id="map-cv"></canvas>
+      <div id="map-top" class="panel"><b id="map-name">L’île</b> <span id="map-coords"></span></div>
+      <div id="map-btns"><button id="map-zin" class="btn small" title="Zoom +">+</button><button id="map-zout" class="btn small" title="Zoom -">−</button><button id="map-center" class="btn small">Me centrer</button><button id="map-close" class="btn small">Fermer</button></div>
+      <div id="map-help" class="panel small"><kbd>Glisser</kbd> / <kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> / flèches : se déplacer · <kbd>Molette</kbd> / <kbd>+</kbd> <kbd>−</kbd> : zoom · <kbd>Espace</kbd> : me centrer · <kbd>M</kbd> / <kbd>Échap</kbd> : fermer</div>
+    </div>
+
+    <!-- Cuisine -->
+    <div id="screen-cook" class="screen overlay hidden">
+      <div id="ckw">
+        <div id="ck-title" class="ck-banner">TABLE DE CUISINE ALCHIMIQUE</div>
+        <button id="btn-cook-close" class="ck-x" title="Fermer (Échap)">✕</button>
+        <div id="cook-stations"></div>
+        <div id="cook-shelf"></div>
+        <div id="cook-dough">
+          <div class="dg-left">
+            <div class="ck-slot" id="dg-flour"></div><div class="ck-slot" id="dg-wheat"></div>
+            <div class="ck-slot jug" id="dg-jug"></div><div class="dg-arrow">➜</div>
+            <div class="dg-label"><b>PÂTE</b><span>Farine + Liquide/Jus = Pâte</span></div>
+          </div>
+          <div class="dg-arrow big">➜</div>
+          <div id="cook-forms"></div>
+        </div>
+        <div id="cook-inv-panel"><div class="ck-head">INGRÉDIENTS</div><div id="cook-inv"></div></div>
+        <div id="cook-res-panel">
+          <div class="ck-head">RÉSULTAT</div>
+          <div id="cook-prev"></div>
+          <div id="cook-namerow" class="hidden"><input id="cook-name" maxlength="26" placeholder="Nom du plat" autocomplete="off" spellcheck="false"></div>
+          <div id="cook-note" class="note"></div>
+          <div class="ck-btns"><button id="btn-cook-name" class="ck-btn">NOMMER LE PLAT</button><button id="btn-cook-make" class="ck-btn go">PRÉPARER</button><button id="btn-cook-clear" class="ck-btn">VIDER</button></div>
+        </div>
+        <div id="cook-bookpage">
+          <div class="bk-title">LIVRE DE RECETTES</div>
+          <div id="cook-book"></div>
+          <div id="cook-miss"></div>
+          <button id="btn-cook-repro" class="ck-btn go">REFAIRE LA RECETTE</button>
+        </div>
+        <div id="cook-info"></div>
+      </div>
+    </div>
+
+    <!-- Artisanat -->
+    <div id="screen-crafting" class="screen overlay hidden">
+      <div class="panel box craft-box">
+        <h2 id="craft-title">Artisanat</h2>
+        <div id="craft-sub" class="note sub"></div>
+        <div id="craft-main">
+          <div id="craft-left">
+            <div id="craft-tabs"></div>
+            <div id="craft-list"></div>
+            <div id="craft-pager"></div>
+            <div id="craft-colors" class="hidden"></div>
+          </div>
+          <div id="craft-detail"></div>
+        </div>
+        <div id="craft-note" class="note"></div>
+        <div class="menu-buttons row"><button id="btn-craft-close" class="btn small">Fermer (Échap)</button></div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div id="screen-options" class="screen overlay hidden">
+      <div class="panel box options-box">
+        <h2>Options &amp; commandes</h2>
+        <div class="opt-row"><label for="opt-zoom">Taille de l'image</label>
+          <select id="opt-zoom"><option value="0">Automatique</option><option value="2">×2</option><option value="3">×3</option><option value="4">×4</option><option value="5">×5</option><option value="6">×6</option></select></div>
+        <div class="opt-row"><label for="opt-shader">Shaders (lumières, ombres, effets)</label>
+          <select id="opt-shader"><option value="high">Complets</option><option value="low">Légers</option><option value="off">Désactivés</option></select></div>
+        <div class="opt-row"><label for="opt-music">Volume de la musique</label><input type="range" id="opt-music" min="0" max="100" step="5"></div>
+        <div class="opt-row"><label for="opt-autosave">Sauvegarde automatique</label><input type="checkbox" id="opt-autosave"></div>
+        <div class="opt-row"><label for="opt-help">Aide des commandes en jeu</label><input type="checkbox" id="opt-help"></div>
+        <div class="opt-row"><label>Mon personnage</label><button id="btn-avatar" class="btn small">Créer mon avatar</button></div>
+        <div class="controls-list">
+          <div><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou <kbd>W</kbd><kbd>A</kbd> ou flèches : déplacement</div>
+          <div><kbd>Espace</kbd> : dash · <kbd>E</kbd> : interagir / cueillir / récolter</div>
+          <div><kbd>Clic gauche</kbd> ou <kbd>J</kbd> : utiliser l'outil sélectionné</div>
+          <div><kbd>1</kbd>–<kbd>8</kbd> ou molette : choisir dans la barre rapide</div>
+          <div><kbd>E</kbd> : inventaire (sans objet à côté) · <kbd>C</kbd> : artisanat (à la main) · <kbd>M</kbd> : grande carte</div>
+          <div>Aliment en main : <kbd>Clic droit</kbd> manger · graine en main : <kbd>Clic gauche</kbd> planter sur une parcelle</div>
+          <div>Objet à poser : <kbd>Clic gauche</kbd> poser · <kbd>Clic droit</kbd> retirer (clic gauche ou <kbd>J</kbd> : devant soi)</div>
+          <div><kbd>E</kbd> devant l'établi : recettes avancées · <kbd>Échap</kbd> : pause · <kbd>H</kbd> : aide</div>
+        </div>
+        <div class="menu-buttons row">
+          <button id="btn-erase" class="btn danger small">Effacer la sauvegarde</button>
+          <button id="btn-options-close" class="btn small">Retour</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div id="screen-confirm" class="screen overlay hidden">
+      <div class="panel box">
+        <h2 id="confirm-title">Confirmer</h2>
+        <p id="confirm-text"></p>
+        <div class="menu-buttons row">
+          <button id="btn-confirm-no" class="btn small">Annuler</button>
+          <button id="btn-confirm-yes" class="btn danger small">Confirmer</button>
+        </div>
+      </div>
+    </div>
+
+    <noscript><div class="screen"><div class="panel box">Ce jeu a besoin de JavaScript.</div></div></noscript>
+  </div>
+
+  <script src="src/config.js"></script>
+  <script src="src/rendering/tint.js"></script>
+  <script src="src/engine/rng.js"></script>
+  <script src="src/world/tiles.js"></script>
+  <script src="src/systems/items.js"></script>
+  <script src="src/systems/inventory.js"></script>
+  <script src="src/systems/time.js"></script>
+  <script src="src/systems/weather.js"></script>
+  <script src="src/world/resources.js"></script>
+  <script src="src/content/decor.js"></script>
+  <script src="src/content/nature.js"></script>
+  <script src="src/content/food.js"></script>
+  <script src="src/content/ores.js"></script>
+  <script src="src/content/forge-data.js"></script>
+  <script src="src/content/armor.js"></script>
+  <script src="src/content/enchant-data.js"></script>
+  <script src="src/content/materials.js"></script>
+  <script src="src/content/lobby.js"></script>
+  <script src="src/content/avatar.js"></script>
+  <script src="src/content/dimobjects.js"></script>
+  <script src="src/content/creature-gen.js"></script>
+  <script src="src/content/mob-gen.js"></script>
+  <script src="src/content/combat-data.js"></script>
+  <script src="src/world/map.js"></script>
+  <script src="src/world/world.js"></script>
+  <script src="src/world/dimgen.js"></script>
+  <script src="src/engine/collision.js"></script>
+  <script src="src/engine/camera.js"></script>
+  <script src="src/engine/input.js"></script>
+  <script src="src/engine/loop.js"></script>
+  <script src="src/systems/harvest.js"></script>
+  <script src="src/systems/crafting.js"></script>
+  <script src="src/systems/containers.js"></script>
+  <script src="src/systems/house.js"></script>
+  <script src="src/systems/farming.js"></script>
+  <script src="src/systems/vitals.js"></script>
+  <script src="src/systems/cooking.js"></script>
+  <script src="src/systems/building.js"></script>
+  <script src="src/systems/explore.js"></script>
+  <script src="src/systems/dimension.js"></script>
+  <script src="src/systems/creatures.js"></script>
+  <script src="src/systems/mobs.js"></script>
+  <script src="src/systems/forge-geometry.js"></script>
+  <script src="src/systems/forge.js"></script>
+  <script src="src/systems/enchant.js"></script>
+  <script src="src/systems/powers.js"></script>
+  <script src="src/systems/combat.js"></script>
+  <script src="src/entities/player.js"></script>
+  <script src="src/systems/commands.js"></script>
+  <script src="src/engine/game.js"></script>
+  <script src="src/vendor/peerjs.min.js"></script>
+  <script src="src/net/net.js"></script>
+  <script src="src/persistence/save-manager.js"></script>
+  <script src="src/rendering/forge-art.js"></script>
+  <script src="src/rendering/creature-art.js"></script>
+  <script src="src/rendering/mob-art.js"></script>
+  <script src="src/rendering/food-art.js"></script>
+  <script src="src/rendering/armor-art.js"></script>
+  <script src="src/rendering/enchant-art.js"></script>
+  <script src="src/rendering/sprites.js"></script>
+  <script src="src/rendering/sky.js"></script>
+  <script src="src/rendering/effects.js"></script>
+  <script src="src/rendering/weather-fx.js"></script>
+  <script src="src/rendering/shader.js"></script>
+  <script src="src/rendering/renderer.js"></script>
+  <script src="src/ui/hud.js"></script>
+  <script src="src/ui/minimap.js"></script>
+  <script src="src/ui/touch.js"></script>
+  <script src="src/ui/bigmap.js"></script>
+  <script src="src/audio/music.js"></script>
+  <script src="src/ui/inventory-ui.js"></script>
+  <script src="src/ui/crafting-ui.js"></script>
+  <script src="src/ui/container-ui.js"></script>
+  <script src="src/ui/forge-ui.js"></script>
+  <script src="src/ui/enchant-ui.js"></script>
+  <script src="src/ui/cook-ui.js"></script>
+  <script src="src/ui/coop-ui.js"></script>
+  <script src="src/ui/avatar-ui.js"></script>
+  <script src="src/ui/menu.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
