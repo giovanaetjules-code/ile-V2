@@ -1,0 +1,12 @@
+Mets ici tes fichiers de musique (mp3), avec EXACTEMENT ces noms (majuscules comprises) :
+  Intro_du_jeu.mp3      écran titre
+  Music_Jour_1.mp3      île (jour)
+  Music_Jour_2.mp3      île (jour, enchaînée avec la 1)
+  Dimension_music_1.mp3 dimensions
+  Dimension_music_2.mp3 dimensions (enchaînée avec la 1)
+  Portail.mp3           lobby et éveil du portail
+  Combat_Instrumental.mp3   combat SANS paroles   (OPTIONNEL)
+  Combat_Paroles.mp3        combat AVEC paroles    (OPTIONNEL)
+  Combat.mp3                combat, une seule piste (OPTIONNEL, marche aussi)
+  Les pistes de combat sont toutes facultatives : sans aucune, rien ne change. Si tu en mets deux ou trois,
+  chaque nouveau combat joue la suivante (instrumental, puis paroles, puis instrumental...).
